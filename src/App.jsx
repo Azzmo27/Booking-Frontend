@@ -30,7 +30,9 @@ export function App() {
     ? "Mine vagtmuligheder"
     : plannerView === "employees"
       ? "Afløsere"
-      : "Vagtplanlægger";
+      : plannerView === "applications"
+        ? "Ønskede vagter"
+        : "Vagtplanlægger";
 
   return (
     <div className="app-frame">
@@ -59,7 +61,7 @@ export function App() {
                 type="button"
                 onClick={() => setPlannerView("applications")}
               >
-                Ansøgninger
+                Ønskede vagter
               </button>
               <button
                 className={plannerView === "employees" ? "active-nav" : ""}

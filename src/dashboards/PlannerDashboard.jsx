@@ -302,7 +302,7 @@ export function PlannerDashboard({ view = "overview" }) {
         <section className="metrics">
           <Metric label="Afløsere" value={aflosere.length} />
           <Metric label="Viste resultater" value={filteredEmployees.length} />
-          <Metric label="Pending ansøgninger" value={pending.length} />
+          <Metric label="Ønskede vagter" value={pending.length} />
         </section>
 
         {toast}
@@ -357,7 +357,7 @@ export function PlannerDashboard({ view = "overview" }) {
   return (
     <>
       <section className="metrics">
-        <Metric label="Pending ansøgninger" value={pending.length} />
+        <Metric label="Ønskede vagter" value={pending.length} />
         <Metric label="37 timers warnings" value={warningCount} />
         <Metric label="Afløsere" value={aflosere.length} />
       </section>
@@ -410,14 +410,14 @@ export function PlannerDashboard({ view = "overview" }) {
 
       <section className="workspace two-even">
         <Panel
-          title="Ansøgninger"
+          title="Ønskede vagter"
           description="Godkend eller afvis afløsernes ønskede vagter."
           actions={<Button variant="ghost" onClick={loadData} disabled={loading || saving}>Opdater</Button>}
         >
           <ShiftList
             loading={loading}
             shifts={pending}
-            emptyText="Der er ingen pending ansøgninger."
+            emptyText="Der er ingen ønskede vagter."
             onSelect={openShiftDetails}
             action={(shift) => (
               <div className="row-actions" onClick={(event) => event.stopPropagation()}>
@@ -575,8 +575,8 @@ export function PlannerDashboard({ view = "overview" }) {
 
           {selectedShift.status === "REQUESTED" && (
             <div className="detail-actions">
-              <Button onClick={() => decide(selectedShift.id, "approve")} disabled={saving}>Godkend ansøgning</Button>
-              <Button variant="ghost" onClick={() => decide(selectedShift.id, "reject")} disabled={saving}>Afvis ansøgning</Button>
+              <Button onClick={() => decide(selectedShift.id, "approve")} disabled={saving}>Godkend ønske</Button>
+              <Button variant="ghost" onClick={() => decide(selectedShift.id, "reject")} disabled={saving}>Afvis ønske</Button>
             </div>
           )}
         </Modal>
