@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { Metric } from "../components/Metric";
 import { ShiftList } from "../components/ShiftList";
 import { SkeletonList } from "../components/Skeleton";
@@ -12,13 +12,15 @@ import { shiftService } from "../services/shiftService";
 import { teamService } from "../services/teamService";
 import { userService } from "../services/userService";
 import { addDaysIso, todayIso } from "../utils/date";
-import { cleanError, formatType, statusText } from "../utils/format";
+import { cleanError, formatPeriod, formatType, statusText } from "../utils/format";
 
 function emptyShiftForm(teams) {
   return {
     date: todayIso(),
     type: shiftTypes[0],
     teamId: teams.length ? String(teams[0].id) : "",
+    requiredSkills: "",
+    recurrenceWeeks: 1,
   };
 }
 
@@ -47,6 +49,7 @@ export function PlannerDashboard({ view = "overview" }) {
   const [employeeShifts, setEmployeeShifts] = useState([]);
   const [employeeLoading, setEmployeeLoading] = useState(false);
   const [newShift, setNewShift] = useState(emptyShiftForm([]));
+  const [standardWeeks, setStandardWeeks] = useState(4);
 
   async function loadData() {
     setLoading(true);
@@ -82,6 +85,7 @@ export function PlannerDashboard({ view = "overview" }) {
       date: shift.date,
       type: shift.type,
       teamId: team ? String(team.id) : "",
+      requiredSkills: shift.requiredSkills || "",
     });
   }
 
@@ -101,8 +105,10 @@ export function PlannerDashboard({ view = "overview" }) {
         date: newShift.date,
         type: newShift.type,
         teamId: Number(newShift.teamId),
+        requiredSkills: newShift.requiredSkills,
+        recurrenceWeeks: Number(newShift.recurrenceWeeks) || 1,
       });
-      setMessage("Vagten blev oprettet.");
+      setMessage(Number(newShift.recurrenceWeeks) > 1 ? "De gentagende vagter blev oprettet." : "Vagten blev oprettet.");
       setIsCreateOpen(false);
       await loadData();
     } catch (err) {
@@ -125,9 +131,26 @@ export function PlannerDashboard({ view = "overview" }) {
         date: editShift.date,
         type: editShift.type,
         teamId: Number(editShift.teamId),
+        requiredSkills: editShift.requiredSkills,
       });
       setMessage("Vagten blev opdateret.");
       closeShiftDetails();
+      await loadData();
+    } catch (err) {
+      setError(cleanError(err.message));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function generateStandardShifts() {
+    setSaving(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const created = await shiftService.generateStandard(weekStart, Number(standardWeeks) || 4);
+      setMessage(`${created.length} standardvagter blev oprettet.`);
       await loadData();
     } catch (err) {
       setError(cleanError(err.message));
@@ -222,10 +245,13 @@ export function PlannerDashboard({ view = "overview" }) {
 
   const aflosere = users.filter((user) => user.role === "AFLOSER");
   const warningCount = pending.filter((shift) => shift.exceeds37Hours).length;
+  const plannedHours = weekPlan.reduce((sum, shift) => sum + (shift.hours || 0), 0);
+  const waitlistCount = pending.reduce((sum, shift) => sum + (shift.waitlistCount || 0), 0);
+  const openWeekShifts = weekPlan.filter((shift) => shift.status === "OPEN").length;
   const normalizedSearch = search.trim().toLowerCase();
   const normalizedEmployeeSearch = employeeSearch.trim().toLowerCase();
   const filteredEmployees = aflosere.filter((employee) => {
-    const searchable = `${employee.name || ""} ${employee.email || ""} ${employee.phone || ""} ${employee.address || ""}`.toLowerCase();
+    const searchable = `${employee.name || ""} ${employee.email || ""} ${employee.phone || ""} ${employee.address || ""} ${employee.skills || ""}`.toLowerCase();
     return !normalizedEmployeeSearch || searchable.includes(normalizedEmployeeSearch);
   });
   const filteredWeekPlan = weekPlan.filter((shift) => {
@@ -277,7 +303,15 @@ export function PlannerDashboard({ view = "overview" }) {
         </div>
         <div>
           <span>Planlagte timer</span>
-          <strong>{selectedEmployeeHours}</strong>
+          <strong>{selectedEmployeeHours}t</strong>
+        </div>
+        <div>
+          <span>Anciennitet fra</span>
+          <strong>{valueOrDash(selectedEmployee.seniorityDate)}</strong>
+        </div>
+        <div>
+          <span>Kompetencer</span>
+          <strong>{valueOrDash(selectedEmployee.skills)}</strong>
         </div>
       </section>
 
@@ -300,9 +334,10 @@ export function PlannerDashboard({ view = "overview" }) {
     return (
       <>
         <section className="metrics">
-          <Metric label="Afløsere" value={aflosere.length} />
-          <Metric label="Viste resultater" value={filteredEmployees.length} />
-          <Metric label="Ønskede vagter" value={pending.length} />
+          <Metric label="Afløsere" value={aflosere.length} helper="Registrerede brugere" tone="green" />
+          <Metric label="Viste resultater" value={filteredEmployees.length} helper="Matcher søgning" tone="blue" />
+          <Metric label="Pending ønsker" value={pending.length} helper="Kræver behandling" tone="yellow" />
+          <Metric label="37t warnings" value={warningCount} helper="Skal kontrolleres" tone="red" />
         </section>
 
         {toast}
@@ -339,11 +374,18 @@ export function PlannerDashboard({ view = "overview" }) {
                     <small>Adresse</small>
                     <strong>{valueOrDash(employee.address)}</strong>
                   </span>
+                  <span>
+                    <small>Kompetencer</small>
+                    <strong>{valueOrDash(employee.skills)}</strong>
+                  </span>
                 </button>
               ))}
             </div>
           ) : (
-            <div className="empty-state">Der blev ikke fundet nogen afløsere.</div>
+            <div className="empty-state">
+              <strong>Ingen afløsere fundet</strong>
+              <span>Prøv at ændre søgningen eller opdatere listen.</span>
+            </div>
           )}
         </Panel>
 
@@ -357,9 +399,10 @@ export function PlannerDashboard({ view = "overview" }) {
   return (
     <>
       <section className="metrics">
-        <Metric label="Ønskede vagter" value={pending.length} />
-        <Metric label="37 timers warnings" value={warningCount} />
-        <Metric label="Afløsere" value={aflosere.length} />
+        <Metric label="Ugens vagter" value={weekPlan.length} helper="I valgt uge" tone="blue" />
+        <Metric label="Planlagte timer" value={`${plannedHours}t`} helper="Samlet vagtbelastning" tone="neutral" />
+        <Metric label="Åbne vagter" value={openWeekShifts} helper="Mangler bemanding" tone="green" />
+        <Metric label="Venteliste" value={waitlistCount} helper="Samlede ansøgninger" tone="yellow" />
       </section>
 
       {toast}
@@ -367,43 +410,50 @@ export function PlannerDashboard({ view = "overview" }) {
       {!showApplicationsOnly && (
         <Panel
           title="Ugekalender"
-          description="Planlagte vagter fordelt på ugedage."
-          className="full-width"
+          description="Planlagte vagter fordelt på ugedage med team, periode og status."
+          className="full-width calendar-panel"
           actions={(
             <div className="toolbar">
               <Button variant="ghost" onClick={() => setWeekStart(addDaysIso(weekStart, -7))}>Forrige uge</Button>
               <Button variant="ghost" onClick={() => setWeekStart(todayIso())}>Denne uge</Button>
               <Button variant="ghost" onClick={() => setWeekStart(addDaysIso(weekStart, 7))}>Næste uge</Button>
-              <label className="compact-label">
-                Søg
-                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Navn, team, vagttype" />
+              <label className="inline-control">
+                Standard uger
+                <input type="number" min="1" max="12" value={standardWeeks} onChange={(event) => setStandardWeeks(event.target.value)} />
               </label>
-              <label className="compact-label">
-                Team
-                <select value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)}>
-                  <option value="all">Alle teams</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.name}>{team.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="compact-label">
-                Afløser
-                <select value={employeeFilter} onChange={(event) => setEmployeeFilter(event.target.value)}>
-                  <option value="all">Alle afløsere</option>
-                  {aflosere.map((employee) => (
-                    <option key={employee.id} value={employee.name}>{employee.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="compact-label">
-                Startdato
-                <input type="date" value={weekStart} onChange={(event) => setWeekStart(event.target.value)} />
-              </label>
-              <Button onClick={() => setIsCreateOpen(true)}>Ny vagt</Button>
+              <Button variant="ghost" onClick={generateStandardShifts} disabled={saving}>Opret standardvagter</Button>
+              <Button onClick={() => setIsCreateOpen(true)}>Opret vagt</Button>
             </div>
           )}
         >
+          <div className="calendar-filter-bar">
+            <label>
+              Søg
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Navn, team, vagttype" />
+            </label>
+            <label>
+              Team
+              <select value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)}>
+                <option value="all">Alle teams</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.name}>{team.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Afløser
+              <select value={employeeFilter} onChange={(event) => setEmployeeFilter(event.target.value)}>
+                <option value="all">Alle afløsere</option>
+                {aflosere.map((employee) => (
+                  <option key={employee.id} value={employee.name}>{employee.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Startdato
+              <input type="date" value={weekStart} onChange={(event) => setWeekStart(event.target.value)} />
+            </label>
+          </div>
           <WeekCalendar loading={loading} shifts={filteredWeekPlan} weekStart={weekStart} onSelectShift={openShiftDetails} />
         </Panel>
       )}
@@ -417,7 +467,7 @@ export function PlannerDashboard({ view = "overview" }) {
           <ShiftList
             loading={loading}
             shifts={pending}
-            emptyText="Der er ingen ønskede vagter."
+            emptyText="Der er ingen ønskede vagter, som afventer behandling."
             onSelect={openShiftDetails}
             action={(shift) => (
               <div className="row-actions" onClick={(event) => event.stopPropagation()}>
@@ -433,7 +483,7 @@ export function PlannerDashboard({ view = "overview" }) {
         </Panel>
 
         {!showApplicationsOnly && (
-          <Panel title="Afløsere" description="Klik på en afløsers navn for at se kommende vagter.">
+          <Panel title="Afløsere" description="Klik på en afløser for at se kommende vagter og kontaktinfo.">
             {loading ? (
               <SkeletonList rows={4} />
             ) : aflosere.length ? (
@@ -449,7 +499,10 @@ export function PlannerDashboard({ view = "overview" }) {
                 ))}
               </div>
             ) : (
-              <div className="empty-state">Der er ingen afløsere.</div>
+              <div className="empty-state">
+                <strong>Ingen afløsere</strong>
+                <span>Der er endnu ikke registreret afløsere.</span>
+              </div>
             )}
           </Panel>
         )}
@@ -469,7 +522,7 @@ export function PlannerDashboard({ view = "overview" }) {
           description="Vagten bliver synlig for afløsere som en åben vagt."
           onClose={() => setIsCreateOpen(false)}
         >
-          <form className="form-grid" onSubmit={createShift}>
+          <form className="form-grid modal-form" onSubmit={createShift}>
             <label>
               Dato
               <input
@@ -486,7 +539,7 @@ export function PlannerDashboard({ view = "overview" }) {
                 onChange={(event) => setNewShift({ ...newShift, type: event.target.value })}
               >
                 {shiftTypes.map((type) => (
-                  <option key={type} value={type}>{formatType(type)}</option>
+                  <option key={type} value={type}>{formatType(type)} · {formatPeriod(type)}</option>
                 ))}
               </select>
             </label>
@@ -502,6 +555,24 @@ export function PlannerDashboard({ view = "overview" }) {
                 ))}
               </select>
             </label>
+            <label>
+              Påkrævede kompetencer
+              <input
+                value={newShift.requiredSkills}
+                onChange={(event) => setNewShift({ ...newShift, requiredSkills: event.target.value })}
+                placeholder="medicin, demens, nat"
+              />
+            </label>
+            <label>
+              Gentag i antal uger
+              <input
+                type="number"
+                min="1"
+                max="26"
+                value={newShift.recurrenceWeeks}
+                onChange={(event) => setNewShift({ ...newShift, recurrenceWeeks: event.target.value })}
+              />
+            </label>
             <div className="form-actions">
               <Button variant="ghost" type="button" onClick={() => setIsCreateOpen(false)}>Annuller</Button>
               <Button disabled={saving}>Opret vagt</Button>
@@ -512,8 +583,8 @@ export function PlannerDashboard({ view = "overview" }) {
 
       {selectedShift && editShift && (
         <Modal
-          title="Vagt-detaljer"
-          description={`${formatType(selectedShift.type)} - ${selectedShift.teamName || "Ukendt team"}`}
+          title="Vagtdetaljer"
+          description={`${formatType(selectedShift.type)} · ${formatPeriod(selectedShift.type)} · ${selectedShift.teamName || "Ukendt team"}`}
           onClose={closeShiftDetails}
         >
           <section className="detail-grid">
@@ -529,9 +600,36 @@ export function PlannerDashboard({ view = "overview" }) {
               <span>Timer</span>
               <strong>{selectedShift.hours}t</strong>
             </div>
+            <div>
+              <span>Venteliste</span>
+              <strong>{selectedShift.waitlistCount || 0}</strong>
+            </div>
+            <div>
+              <span>Kompetencer</span>
+              <strong>{valueOrDash(selectedShift.requiredSkills)}</strong>
+            </div>
+            <div>
+              <span>Bytte</span>
+              <strong>{selectedShift.swapRequested ? `Ønsket af ${selectedShift.swapRequestedByName}` : "-"}</strong>
+            </div>
           </section>
 
-          <form className="form-grid" onSubmit={updateShift}>
+          {!!selectedShift.applications?.length && (
+            <Panel title="Prioriteret venteliste" className="embedded-panel">
+              <div className="priority-list">
+                {selectedShift.applications.map((application, index) => (
+                  <article key={application.id}>
+                    <span>#{index + 1}</span>
+                    <strong>{application.userName}</strong>
+                    <small>{application.priorityReason}</small>
+                    <small>Kompetencer: {valueOrDash(application.skills)} · Anciennitet: {valueOrDash(application.seniorityDate)}</small>
+                  </article>
+                ))}
+              </div>
+            </Panel>
+          )}
+
+          <form className="form-grid modal-form" onSubmit={updateShift}>
             <label>
               Dato
               <input
@@ -548,7 +646,7 @@ export function PlannerDashboard({ view = "overview" }) {
                 onChange={(event) => setEditShift({ ...editShift, type: event.target.value })}
               >
                 {shiftTypes.map((type) => (
-                  <option key={type} value={type}>{formatType(type)}</option>
+                  <option key={type} value={type}>{formatType(type)} · {formatPeriod(type)}</option>
                 ))}
               </select>
             </label>
@@ -563,6 +661,14 @@ export function PlannerDashboard({ view = "overview" }) {
                   <option key={team.id} value={team.id}>{team.name}</option>
                 ))}
               </select>
+            </label>
+            <label>
+              Påkrævede kompetencer
+              <input
+                value={editShift.requiredSkills}
+                onChange={(event) => setEditShift({ ...editShift, requiredSkills: event.target.value })}
+                placeholder="medicin, demens, nat"
+              />
             </label>
             <div className="form-actions split-actions">
               <Button variant="danger" type="button" onClick={deleteShift} disabled={saving}>Slet vagt</Button>

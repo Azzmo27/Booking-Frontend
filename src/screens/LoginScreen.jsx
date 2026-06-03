@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { request } from "../api/client";
 import { cleanError } from "../utils/format";
 
 const demoLogins = [
   { label: "Planlægger", email: "planner@example.com", password: "planner123" },
-  { label: "Afløser", email: "anna@example.com", password: "anna123" },
+  { label: "Afløser Anna", email: "anna@example.com", password: "anna123" },
+  { label: "Afløser Omar", email: "omar@example.com", password: "omar123" },
 ];
 
 export function LoginScreen({ onLogin }) {
@@ -45,9 +46,9 @@ export function LoginScreen({ onLogin }) {
         <span className="login-grid-glow" />
       </div>
 
-      <section className="login-hero" aria-label="Bookingplan login">
+      <section className="login-hero" aria-label="BookingPlan login">
         <div className="login-story">
-          <p className="eyebrow">Bookingplan</p>
+          <p className="eyebrow">BookingPlan</p>
           <h1>Rolige vagter starter med et klart overblik.</h1>
           <p>
             Log ind og styr ansøgninger, ugeplaner og afløsere fra et samlet

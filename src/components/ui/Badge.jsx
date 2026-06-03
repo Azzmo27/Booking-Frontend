@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { statusClass, statusText } from "../../utils/format";
 
 export function Badge({ status, children }) {

@@ -1,10 +1,11 @@
-import React from "react";
+﻿import React from "react";
 
-export function Metric({ label, value }) {
+export function Metric({ label, value, helper, tone = "neutral" }) {
   return (
-    <div>
+    <article className={`metric-card metric-${tone}`}>
       <span>{label}</span>
       <strong>{value}</strong>
-    </div>
+      {helper && <small>{helper}</small>}
+    </article>
   );
 }

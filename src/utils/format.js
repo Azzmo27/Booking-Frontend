@@ -1,5 +1,22 @@
+﻿const typeLabels = {
+  DAG: "Dagvagt",
+  AFTEN: "Aftenvagt",
+  NAT: "Nattevagt",
+};
+
+function parts(type = "") {
+  return type.split("_");
+}
+
 export function formatType(type) {
-  return type?.replaceAll("_", " ") ?? "";
+  const [kind] = parts(type);
+  return typeLabels[kind] ?? type?.replaceAll("_", " ") ?? "";
+}
+
+export function formatPeriod(type) {
+  const [, start, end] = parts(type);
+  if (!start || !end) return "Tidspunkt ikke angivet";
+  return `${start.padStart(2, "0")}:00-${end.padStart(2, "0")}:00`;
 }
 
 export function cleanError(message) {
@@ -10,14 +27,14 @@ export function cleanError(message) {
 }
 
 export function statusClass(status) {
-  if (status === "APPROVED") return "filled";
+  if (status === "APPROVED") return "approved";
   if (status === "REQUESTED") return "pending";
   return "open";
 }
 
 export function statusText(status) {
   if (status === "APPROVED") return "Godkendt";
-  if (status === "REQUESTED") return "Pending";
+  if (status === "REQUESTED") return "Venteliste";
   return "Åben";
 }
 

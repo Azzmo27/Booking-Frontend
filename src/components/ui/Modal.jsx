@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 export function Modal({ title, description, children, onClose }) {
   return (
@@ -6,10 +6,11 @@ export function Modal({ title, description, children, onClose }) {
       <section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-header">
           <div>
+            <p className="eyebrow">BookingPlan</p>
             <h2 id="modal-title">{title}</h2>
             {description && <p>{description}</p>}
           </div>
-          <button className="icon-button" type="button" aria-label="Luk" onClick={onClose}>x</button>
+          <button className="icon-button" type="button" aria-label="Luk" onClick={onClose}>×</button>
         </div>
         {children}
       </section>

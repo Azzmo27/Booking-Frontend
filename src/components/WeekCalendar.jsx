@@ -1,7 +1,7 @@
-import React from "react";
+﻿import React from "react";
 import { SkeletonCalendar } from "./Skeleton";
 import { Badge } from "./ui/Badge";
-import { formatType, shiftTypeClass } from "../utils/format";
+import { formatPeriod, formatType, shiftTypeClass } from "../utils/format";
 
 function getWeekDays(start) {
   const base = new Date(`${start}T00:00:00`);
@@ -30,7 +30,7 @@ export function WeekCalendar({ shifts, weekStart, loading, onSelectShift }) {
         return (
           <div className="day-column" key={isoDate}>
             <div className="day-heading">
-              <span>{day.toLocaleDateString("da-DK", { weekday: "short" })}</span>
+              <span>{day.toLocaleDateString("da-DK", { weekday: "long" })}</span>
               <strong>{day.toLocaleDateString("da-DK", { day: "2-digit", month: "2-digit" })}</strong>
             </div>
 
@@ -44,8 +44,9 @@ export function WeekCalendar({ shifts, weekStart, loading, onSelectShift }) {
                   >
                     <div>
                       <strong>{formatType(shift.type)}</strong>
-                      <span>{shift.teamName || "Ukendt team"}</span>
+                      <span>{formatPeriod(shift.type)}</span>
                     </div>
+                    <p>{shift.teamName || "Ukendt team"}</p>
                     <Badge status={shift.status} />
                   </article>
                 ))}

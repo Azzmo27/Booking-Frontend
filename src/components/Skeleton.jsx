@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 export function SkeletonList({ rows = 3 }) {
   return (
@@ -30,6 +30,7 @@ export function SkeletonCalendar() {
             <div className="calendar-shift skeleton-card">
               <span className="skeleton-line" />
               <span className="skeleton-line short" />
+              <span className="skeleton-line tiny" />
             </div>
             <div className="calendar-shift skeleton-card">
               <span className="skeleton-line" />

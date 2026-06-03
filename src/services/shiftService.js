@@ -10,6 +10,9 @@ export const shiftService = {
   getOpen() {
     return request("/shifts/open");
   },
+  getSwaps() {
+    return request("/shifts/swaps");
+  },
   getByUser(userId) {
     return request(`/shifts/user/${userId}`);
   },
@@ -41,5 +44,29 @@ export const shiftService = {
   },
   reject(shiftId) {
     return request(`/shifts/${shiftId}/reject`, { method: "POST" });
+  },
+  generateStandard(startDate, weeks) {
+    return request("/shifts/generate-standard", {
+      method: "POST",
+      body: JSON.stringify({ startDate, weeks }),
+    });
+  },
+  requestSwap(shiftId, userId) {
+    return request(`/shifts/${shiftId}/swap/request`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    });
+  },
+  acceptSwap(shiftId, userId) {
+    return request(`/shifts/${shiftId}/swap/accept`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    });
+  },
+  cancelSwap(shiftId, userId) {
+    return request(`/shifts/${shiftId}/swap/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    });
   },
 };
